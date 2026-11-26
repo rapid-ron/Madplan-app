@@ -1,0 +1,307 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitive helpers
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function userProfileExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isValidStringArray(arr, maxLen) {
+      return arr is list && arr.size() <= maxLen && (arr.size() == 0 || (arr[0] is string && arr[0].size() <= 140));
+    }
+
+    function isValidDateString(val) {
+      return val is string && val.size() == 10 && val.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isValidMealTimes(mt) {
+      return mt is map
+        && mt.keys().hasAll(['breakfast', 'lunch', 'dinner'])
+        && mt.keys().hasOnly(['breakfast', 'lunch', 'dinner'])
+        && mt.breakfast is string && mt.breakfast.size() == 5
+        && mt.lunch is string && mt.lunch.size() == 5
+        && mt.dinner is string && mt.dinner.size() == 5;
+    }
+
+    // Entity validation blueprints
+    function isValidUserProfile(data, userId) {
+      return data.uid is string && data.uid == userId && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() <= 100
+        && data.email is string && data.email.size() <= 200
+        && data.dietType is string && data.dietType.size() <= 32
+        && data.dietType in ['almindelig', 'vegetarisk', 'vegansk', 'pesketarisk', 'lowcarb', 'glutenfri']
+        && data.dailyCalories is number && data.dailyCalories >= 800 && data.dailyCalories <= 6000
+        && data.proteinTarget is number && data.proteinTarget >= 20 && data.proteinTarget <= 400
+        && data.carbsTarget is number && data.carbsTarget >= 0 && data.carbsTarget <= 800
+        && data.fatTarget is number && data.fatTarget >= 10 && data.fatTarget <= 300
+        && data.householdSize is number && data.householdSize >= 1 && data.householdSize <= 12
+        && data.monthlyBudgetDkk is number && data.monthlyBudgetDkk >= 200 && data.monthlyBudgetDkk <= 100000
+        && data.weeklyMealBudgetDkk is number && data.weeklyMealBudgetDkk >= 50 && data.weeklyMealBudgetDkk <= 25000
+        && isValidStringArray(data.allergies, 15)
+        && isValidStringArray(data.customTags, 30)
+        && isValidMealTimes(data.mealTimes)
+        && data.budgetAlertThreshold is number && data.budgetAlertThreshold >= 50 && data.budgetAlertThreshold <= 100
+        && data.notificationsEnabled is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMealPlan(data, userId, planId) {
+      return data.id is string && data.id == planId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == userId && data.ownerId == request.auth.uid
+        && data.weekLabel is string && data.weekLabel.size() >= 1 && data.weekLabel.size() <= 64
+        && isValidDateString(data.startDate)
+        && data.dietType is string && data.dietType.size() <= 32
+        && data.targetCalories is number && data.targetCalories >= 800 && data.targetCalories <= 6000
+        && data.householdSize is number && data.householdSize >= 1 && data.householdSize <= 12
+        && data.estimatedWeeklyCostDkk is number && data.estimatedWeeklyCostDkk >= 0 && data.estimatedWeeklyCostDkk <= 50000
+        && data.days is list && data.days.size() <= 7 && (data.days.size() == 0 || data.days[0] is map)
+        && isValidStringArray(data.mealPrepTips, 10)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidShoppingItem(data, userId, itemId) {
+      return data.id is string && data.id == itemId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == userId && data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 120
+        && data.amount is string && data.amount.size() <= 60
+        && data.category is string && data.category.size() >= 1 && data.category.size() <= 60
+        && data.estimatedPriceDkk is number && data.estimatedPriceDkk >= 0 && data.estimatedPriceDkk <= 10000
+        && data.checked is bool
+        && data.fromMealPlanId is string && data.fromMealPlanId.size() <= 128
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidRecipe(data, userId, recipeId) {
+      return data.id is string && data.id == recipeId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == userId && data.ownerId == request.auth.uid
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 140
+        && data.description is string && data.description.size() <= 500
+        && data.imageUrl is string && data.imageUrl.size() <= 500
+        && data.dietType is string && data.dietType.size() <= 32
+        && data.mealType is string && data.mealType.size() <= 32
+        && data.prepMinutes is number && data.prepMinutes >= 1 && data.prepMinutes <= 600
+        && data.servings is number && data.servings >= 1 && data.servings <= 24
+        && data.estimatedCostDkk is number && data.estimatedCostDkk >= 0 && data.estimatedCostDkk <= 5000
+        && data.calories is number && data.calories >= 0 && data.calories <= 5000
+        && data.protein is number && data.protein >= 0 && data.protein <= 500
+        && data.carbs is number && data.carbs >= 0 && data.carbs <= 500
+        && data.fat is number && data.fat >= 0 && data.fat <= 500
+        && data.fiber is number && data.fiber >= 0 && data.fiber <= 200
+        && isValidStringArray(data.ingredients, 40)
+        && isValidStringArray(data.steps, 25)
+        && isValidStringArray(data.tags, 15)
+        && data.isFavorite is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReceipt(data, userId, receiptId) {
+      return data.id is string && data.id == receiptId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == userId && data.ownerId == request.auth.uid
+        && data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 100
+        && isValidDateString(data.purchaseDate)
+        && data.totalDkk is number && data.totalDkk >= 0 && data.totalDkk <= 100000
+        && data.primaryCategory is string && data.primaryCategory.size() >= 1 && data.primaryCategory.size() <= 60
+        && data.items is list && data.items.size() <= 60 && (data.items.size() == 0 || data.items[0] is map)
+        && isValidStringArray(data.tags, 15)
+        && data.notes is string && data.notes.size() <= 300
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidBackup(data, userId, backupId) {
+      return data.id is string && data.id == backupId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == userId && data.ownerId == request.auth.uid
+        && data.label is string && data.label.size() >= 1 && data.label.size() <= 100
+        && data.deviceName is string && data.deviceName.size() <= 100
+        && data.counts is map
+        && data.counts.keys().hasAll(['mealPlans', 'recipes', 'receipts', 'shoppingItems'])
+        && data.counts.keys().hasOnly(['mealPlans', 'recipes', 'receipts', 'shoppingItems'])
+        && data.snapshotData is map
+        && data.snapshotData.keys().hasOnly(['profile', 'mealPlans', 'recipes', 'receipts', 'shoppingItems'])
+        && data.createdAt is timestamp;
+    }
+
+    // 1. User Profile (PII isolated strictly to verified owner)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && incoming().keys().hasAll(['uid', 'displayName', 'email', 'dietType', 'dailyCalories', 'proteinTarget', 'carbsTarget', 'fatTarget', 'householdSize', 'monthlyBudgetDkk', 'weeklyMealBudgetDkk', 'allergies', 'customTags', 'mealTimes', 'budgetAlertThreshold', 'notificationsEnabled', 'createdAt', 'updatedAt'])
+        && incoming().keys().hasOnly(['uid', 'displayName', 'email', 'dietType', 'dailyCalories', 'proteinTarget', 'carbsTarget', 'fatTarget', 'householdSize', 'monthlyBudgetDkk', 'weeklyMealBudgetDkk', 'allergies', 'customTags', 'mealTimes', 'budgetAlertThreshold', 'notificationsEnabled', 'createdAt', 'updatedAt'])
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action: Update Preferences & Budget Settings
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'dietType', 'dailyCalories', 'proteinTarget', 'carbsTarget', 'fatTarget', 'householdSize', 'monthlyBudgetDkk', 'weeklyMealBudgetDkk', 'allergies', 'customTags', 'mealTimes', 'budgetAlertThreshold', 'notificationsEnabled', 'updatedAt'])
+        );
+      allow delete: if false;
+
+      // 2. Weekly Meal Plans subcollection
+      match /mealPlans/{planId} {
+        allow get: if isOwner(userId) && isValidId(planId) && userProfileExists(userId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isOwner(userId)
+          && isValidId(planId)
+          && incoming().keys().hasAll(['id', 'ownerId', 'weekLabel', 'startDate', 'dietType', 'targetCalories', 'householdSize', 'estimatedWeeklyCostDkk', 'days', 'mealPrepTips', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['id', 'ownerId', 'weekLabel', 'startDate', 'dietType', 'targetCalories', 'householdSize', 'estimatedWeeklyCostDkk', 'days', 'mealPrepTips', 'createdAt', 'updatedAt'])
+          && isValidMealPlan(incoming(), userId, planId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userProfileExists(userId);
+        allow update: if isOwner(userId)
+          && isValidId(planId)
+          && isValidMealPlan(incoming(), userId, planId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Update Meal Plan Days / Tips / Cost
+            incoming().diff(existing()).affectedKeys().hasOnly(['weekLabel', 'startDate', 'dietType', 'targetCalories', 'householdSize', 'estimatedWeeklyCostDkk', 'days', 'mealPrepTips', 'updatedAt'])
+          )
+          && userProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(planId) && userProfileExists(userId);
+      }
+
+      // 3. Synced Shopping Items subcollection
+      match /shoppingItems/{itemId} {
+        allow get: if isOwner(userId) && isValidId(itemId) && userProfileExists(userId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isOwner(userId)
+          && isValidId(itemId)
+          && incoming().keys().hasAll(['id', 'ownerId', 'name', 'amount', 'category', 'estimatedPriceDkk', 'checked', 'fromMealPlanId', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['id', 'ownerId', 'name', 'amount', 'category', 'estimatedPriceDkk', 'checked', 'fromMealPlanId', 'createdAt', 'updatedAt'])
+          && isValidShoppingItem(incoming(), userId, itemId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userProfileExists(userId);
+        allow update: if isOwner(userId)
+          && isValidId(itemId)
+          && isValidShoppingItem(incoming(), userId, itemId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Toggle Checked State
+            incoming().diff(existing()).affectedKeys().hasOnly(['checked', 'updatedAt'])
+            ||
+            // Action: Edit Item Details
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'amount', 'category', 'estimatedPriceDkk', 'checked', 'updatedAt'])
+          )
+          && userProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(itemId) && userProfileExists(userId);
+      }
+
+      // 4. Personal & Saved Recipes subcollection
+      match /recipes/{recipeId} {
+        allow get: if isOwner(userId) && isValidId(recipeId) && userProfileExists(userId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isOwner(userId)
+          && isValidId(recipeId)
+          && incoming().keys().hasAll(['id', 'ownerId', 'title', 'description', 'imageUrl', 'dietType', 'mealType', 'prepMinutes', 'servings', 'estimatedCostDkk', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'ingredients', 'steps', 'tags', 'isFavorite', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['id', 'ownerId', 'title', 'description', 'imageUrl', 'dietType', 'mealType', 'prepMinutes', 'servings', 'estimatedCostDkk', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'ingredients', 'steps', 'tags', 'isFavorite', 'createdAt', 'updatedAt'])
+          && isValidRecipe(incoming(), userId, recipeId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userProfileExists(userId);
+        allow update: if isOwner(userId)
+          && isValidId(recipeId)
+          && isValidRecipe(incoming(), userId, recipeId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Toggle Favorite
+            incoming().diff(existing()).affectedKeys().hasOnly(['isFavorite', 'updatedAt'])
+            ||
+            // Action: Edit Recipe
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'imageUrl', 'dietType', 'mealType', 'prepMinutes', 'servings', 'estimatedCostDkk', 'calories', 'protein', 'carbs', 'fat', 'fiber', 'ingredients', 'steps', 'tags', 'isFavorite', 'updatedAt'])
+          )
+          && userProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(recipeId) && userProfileExists(userId);
+      }
+
+      // 5. Scanned & Manual Grocery Receipts subcollection
+      match /receipts/{receiptId} {
+        allow get: if isOwner(userId) && isValidId(receiptId) && userProfileExists(userId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isOwner(userId)
+          && isValidId(receiptId)
+          && incoming().keys().hasAll(['id', 'ownerId', 'storeName', 'purchaseDate', 'totalDkk', 'primaryCategory', 'items', 'tags', 'notes', 'createdAt', 'updatedAt'])
+          && incoming().keys().hasOnly(['id', 'ownerId', 'storeName', 'purchaseDate', 'totalDkk', 'primaryCategory', 'items', 'tags', 'notes', 'createdAt', 'updatedAt'])
+          && isValidReceipt(incoming(), userId, receiptId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && userProfileExists(userId);
+        allow update: if isOwner(userId)
+          && isValidId(receiptId)
+          && isValidReceipt(incoming(), userId, receiptId)
+          && incoming().id == existing().id
+          && incoming().ownerId == existing().ownerId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && (
+            // Action: Update Receipt Details / Tags / Categories
+            incoming().diff(existing()).affectedKeys().hasOnly(['storeName', 'purchaseDate', 'totalDkk', 'primaryCategory', 'items', 'tags', 'notes', 'updatedAt'])
+          )
+          && userProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(receiptId) && userProfileExists(userId);
+      }
+
+      // 6. Secure Cloud Backup Snapshots subcollection (immutable once created)
+      match /backups/{backupId} {
+        allow get: if isOwner(userId) && isValidId(backupId) && userProfileExists(userId);
+        allow list: if isOwner(userId) && resource.data.ownerId == request.auth.uid;
+        allow create: if isOwner(userId)
+          && isValidId(backupId)
+          && incoming().keys().hasAll(['id', 'ownerId', 'label', 'deviceName', 'counts', 'snapshotData', 'createdAt'])
+          && incoming().keys().hasOnly(['id', 'ownerId', 'label', 'deviceName', 'counts', 'snapshotData', 'createdAt'])
+          && isValidBackup(incoming(), userId, backupId)
+          && incoming().createdAt == request.time
+          && userProfileExists(userId);
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(backupId) && userProfileExists(userId);
+      }
+    }
+  }
+}

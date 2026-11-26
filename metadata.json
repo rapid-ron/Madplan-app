@@ -1,0 +1,6 @@
+{
+  "name": "MadPlan Nord",
+  "description": "Smart ugentlig madplansapp med gratis Gemini AI, kalorie- og næringsberegning, vegetarisk kost, automatisk indkøbsliste, kalenderpåmindelser, opskriftsdatabase med billeder, kvitteringsscanner, Excel-eksport, månedligt budget og sikker cloud-synkronisering.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

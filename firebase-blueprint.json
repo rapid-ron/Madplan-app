@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private user dietary preferences, calorie targets, budget settings, meal reminder schedule, and custom tags.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 200 },
+        "dietType": { "type": "string", "maxLength": 32, "enum": ["almindelig", "vegetarisk", "vegansk", "pesketarisk", "lowcarb", "glutenfri"] },
+        "dailyCalories": { "type": "number" },
+        "proteinTarget": { "type": "number" },
+        "carbsTarget": { "type": "number" },
+        "fatTarget": { "type": "number" },
+        "householdSize": { "type": "number" },
+        "monthlyBudgetDkk": { "type": "number" },
+        "weeklyMealBudgetDkk": { "type": "number" },
+        "allergies": { "type": "array" },
+        "customTags": { "type": "array" },
+        "mealTimes": { "type": "object" },
+        "budgetAlertThreshold": { "type": "number" },
+        "notificationsEnabled": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "dietType", "dailyCalories", "proteinTarget", "carbsTarget", "fatTarget", "householdSize", "monthlyBudgetDkk", "weeklyMealBudgetDkk", "allergies", "customTags", "mealTimes", "budgetAlertThreshold", "notificationsEnabled", "createdAt", "updatedAt"]
+    },
+    "MealPlan": {
+      "title": "MealPlan",
+      "description": "A 7-day AI-generated or customized meal plan with macro calculations and meal-prep tips.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "weekLabel": { "type": "string", "maxLength": 64 },
+        "startDate": { "type": "string", "maxLength": 20, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "dietType": { "type": "string", "maxLength": 32 },
+        "targetCalories": { "type": "number" },
+        "householdSize": { "type": "number" },
+        "estimatedWeeklyCostDkk": { "type": "number" },
+        "days": { "type": "array" },
+        "mealPrepTips": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "weekLabel", "startDate", "dietType", "targetCalories", "householdSize", "estimatedWeeklyCostDkk", "days", "mealPrepTips", "createdAt", "updatedAt"]
+    },
+    "ShoppingItem": {
+      "title": "ShoppingItem",
+      "description": "An individual categorized grocery shopping list item synced across devices.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 120 },
+        "amount": { "type": "string", "maxLength": 60 },
+        "category": { "type": "string", "maxLength": 60 },
+        "estimatedPriceDkk": { "type": "number" },
+        "checked": { "type": "boolean" },
+        "fromMealPlanId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "amount", "category", "estimatedPriceDkk", "checked", "fromMealPlanId", "createdAt", "updatedAt"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Saved or custom recipe with nutritional breakdown, image URL, ingredients, steps, and tags.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "maxLength": 140 },
+        "description": { "type": "string", "maxLength": 500 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "dietType": { "type": "string", "maxLength": 32 },
+        "mealType": { "type": "string", "maxLength": 32 },
+        "prepMinutes": { "type": "number" },
+        "servings": { "type": "number" },
+        "estimatedCostDkk": { "type": "number" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "fiber": { "type": "number" },
+        "ingredients": { "type": "array" },
+        "steps": { "type": "array" },
+        "tags": { "type": "array" },
+        "isFavorite": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "title", "description", "imageUrl", "dietType", "mealType", "prepMinutes", "servings", "estimatedCostDkk", "calories", "protein", "carbs", "fat", "fiber", "ingredients", "steps", "tags", "isFavorite", "createdAt", "updatedAt"]
+    },
+    "Receipt": {
+      "title": "Receipt",
+      "description": "Scanned or manually entered grocery receipt with auto-categorized line items and custom tags.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "storeName": { "type": "string", "maxLength": 100 },
+        "purchaseDate": { "type": "string", "maxLength": 20, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "totalDkk": { "type": "number" },
+        "primaryCategory": { "type": "string", "maxLength": 60 },
+        "items": { "type": "array" },
+        "tags": { "type": "array" },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "storeName", "purchaseDate", "totalDkk", "primaryCategory", "items", "tags", "notes", "createdAt", "updatedAt"]
+    },
+    "CloudBackup": {
+      "title": "CloudBackup",
+      "description": "Named cloud backup snapshot of user data stored as native Firestore Maps and Lists.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "label": { "type": "string", "maxLength": 100 },
+        "deviceName": { "type": "string", "maxLength": 100 },
+        "counts": { "type": "object" },
+        "snapshotData": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "label", "deviceName", "counts", "snapshotData", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Owner-only user profile, dietary preferences, calorie targets, and budget configuration."
+    },
+    "/users/{userId}/mealPlans/{planId}": {
+      "schema": { "$ref": "#/entities/MealPlan" },
+      "description": "Owner-only weekly meal plans."
+    },
+    "/users/{userId}/shoppingItems/{itemId}": {
+      "schema": { "$ref": "#/entities/ShoppingItem" },
+      "description": "Owner-only synced grocery shopping list items."
+    },
+    "/users/{userId}/recipes/{recipeId}": {
+      "schema": { "$ref": "#/entities/Recipe" },
+      "description": "Owner-only personal and saved recipe database."
+    },
+    "/users/{userId}/receipts/{receiptId}": {
+      "schema": { "$ref": "#/entities/Receipt" },
+      "description": "Owner-only scanned and manual grocery receipts for budget reporting."
+    },
+    "/users/{userId}/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/CloudBackup" },
+      "description": "Owner-only cloud backup snapshots."
+    }
+  }
+}
